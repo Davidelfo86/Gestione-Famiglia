@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Budget Premium v15</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --corrente: #0ea5e9;
+            --risparmio: #8b5cf6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            margin-bottom: 25px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .accounts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .account-card {
+            padding: 18px;
+            border-radius: 14px;
+            color: white;
+            transition: transform 0.2s;
+        }
+        .account-card:hover { transform: translateY(-2px); }
+        .acc-corrente { background: linear-gradient(135deg, #0284c7, #0f172a); }
+        .acc-risparmio { background: linear-gradient(135deg, #6d28d9, #0f172a); }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        input, select, button {
+            padding: 10px;
+            background-color: #334155;
+            border: 1px solid #475569;
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        button { cursor: pointer; font-weight: 600; transition: 0.2s; }
+        button:hover { opacity: 0.9; }
+        
+        .btn-add { background: var(--primary); border: none; grid-column: span 6; font-weight: bold; }
+        .btn-add:hover { background: #4f46e5; }
+
+        .table-container { max-height: 250px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        th { font-size: 10px; color: var(--text-muted); padding: 6px; border-bottom: 1px solid #334155; text-align: left; }
+        td { padding: 8px 6px; border-bottom: 1px solid #334155; font-size: 12px; }
+        
+        .badge-day { background: #334155; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px; }
+        .tag-pill { background: rgba(220, 252, 231, 0.1); color: var(--success); font-size: 9px; padding: 1px 4px; border-radius: 4px; font-weight: bold; }
+
+        .flex-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .goal-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--warning);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .progress-bar-bg {
+            background: #334155;
+            border-radius: 8px;
+            height: 8px;
+            width: 100%;
+            margin: 6px 0 10px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            background: var(--success);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .familydog-card { background: #0f172a; border-radius: 12px; padding: 15px; border-top: 4px solid var(--warning); border: 1px solid rgba(255,255,255,0.05); }
+
+        @media (max-width: 1100px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .form-grid { grid-template-columns: repeat(3, 1fr); }
+            .btn-add { grid-column: span 3; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <h2 style="margin:0">🏘️ Family Planner</h2>
+            <select id="yearFilter" onchange="render()" style="width:auto; background:#1e293b; color:var(--text-muted)">
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
+            </select>
+            <select id="monthFilter" onchange="render()" style="width:auto">
+                <option value="0">Gennaio</option><option value="1">Febbraio</option><option value="2">Marzo</option>
+                <option value="3">Aprile</option><option value="4">Maggio</option><option value="5">Giugno</option>
+                <option value="6">Luglio</option><option value="7">Agosto</option><option value="8">Settembre</option>
+                <option value="9">Ottobre</option><option value="10">Novembre</option><option value="11">Dicembre</option>
+            </select>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="saltoAnno()" style="background:var(--warning); color:#0f172a; border:none; border-radius:6px; padding:8px 12px;">🆕 Nuovo Anno</button>
+            <small id="todayDisplay" style="color:var(--warning); align-self:center;"></small>
+        </div>
+    </header>
+
+    <div class="accounts-grid">
+        <div class="account-card acc-corrente">
+            <small style="color:var(--text-muted)">Conto Corrente</small>
+            <h2 id="balCorrente" style="margin:4px 0 0">€ 0,00</h2>
+        </div>
+        <div class="account-card acc-risparmio">
+            <small style="color:var(--text-muted)">Conto Risparmio</small>
+            <h2 id="balRisparmio" style="margin:4px 0 0">€ 0,00</h2>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="left-col">
+            <div class="card">
+                <h3>➕ Aggiungi Movimento</h3>
+                <div class="form-grid">
+                    <input type="text" id="desc" placeholder="Descrizione">
+                    <input type="number" id="amount" placeholder="Importo €">
+                    <input type="number" id="day" placeholder="Giorno (1-31)" min="1" max="31">
+                    <select id="category" onchange="toggleCategoryFields()">
+                        <option value="💰">Stipendio</option>
+                        <option value="👨‍👩‍👧‍👦">Assegno Unico</option>
+                        <option value="🏀">Sport Figli</option>
+                        <option value="📚">Scuola Figli</option>
+                        <option value="🏠">Mutuo Casa</option>
+                        <option value="🏢">Spese Condominiali</option>
+                        <option value="💳">Finanziamento</option>
+                        <option value="🌐">Internet</option>
+                        <option value="🚗">Auto / Benzina</option>
+                        <option value="🛒">Spesa Alimentare</option>
+                        <option value="⚡">Bollette</option>
+                        <option value="📄">Assicurazione / Bollo</option>
+                        <option value="🎁">Varie</option>
+                    </select>
+                    <select id="account">
+                        <option value="corrente">C. Corrente</option>
+                        <option value="risparmio">C. Risparmio</option>
+                    </select>
+                    <select id="type">
+                        <option value="income">Entrata (+)</option>
+                        <option value="expense">Uscita (-)</option>
+                    </select>
+                    
+                    <div style="grid-column:span 3; display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="isRecurring" style="width:16px;" onclick="toggleRecFields()"> <small>Ricorrente</small>
+                    </div>
+                    
+                    <div id="recurringFields" style="grid-column:span 3; display:none; gap:5px;">
+                        <input type="number" id="totalInstallments" placeholder="Rate Totali">
+                        <input type="number" id="paidInstallments" placeholder="Rate Pagate">
+                        <input type="number" id="endYear" placeholder="Anno Scadenza">
+                    </div>
+
+                    <div id="condoFields" style="grid-column:span 6; display:none; gap:5px; margin-top:5px;">
+                        <input type="number" id="condoInstallments" placeholder="N° Rate">
+                        <select id="condoFrequency">
+                            <option value="1">Ogni mese</option>
+                            <option value="2">Ogni 2 mesi</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-add" onclick="addEntry()">SALVA NELLO SCADENZARIO</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🗓️ Agenda del Mese</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>GIORNO</th>
+                                <th>MOVIMENTO</th>
+                                <th>CONTO</th>
+                                <th>IMPORTO</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="entriesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="flex-container">
+                <div class="card" style="margin-bottom:0">
+                    <h3>📉 Proiezione Saldo</h3>
+                    <canvas id="projectionChart" height="90"></canvas>
+                </div>
+                
+                <div class="card" style="margin-bottom:0; border-left: 4px solid var(--success);">
+                    <h3>🎯 Riepilogo Fissi e Mensili</h3>
+                    <div id="summaryRec" style="font-size: 11px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <div class="card">
+                <h3>🔄 Trasferimento tra conti</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:8px; align-items:center;">
+                    <select id="fromAccount">
+                        <option value="corrente">Da: C. Corrente</option>
+                        <option value="risparmio">Da: C. Risparmio</option>
+                    </select>
+                    <input type="number" id="transferAmount" placeholder="Importo €">
+                    <button onclick="transferMoney()" style="background:var(--success); border:none; padding:8px 12px; border-radius:6px; color:white; font-size:12px;">Invia</button>
+                </div>
+            </div>
+
+            <div class="flex-container">
+                <div class="card">
+                    <h3>💳 Monitoraggio Finanziamenti</h3>
+                    <div id="loanStatusList" style="font-size: 11px;"></div>
+                </div>
+
+                <div class="card">
+                    <h3>🎯 Obiettivi di Risparmio</h3>
+                    <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px">
+                        <input type="text" id="goalName" placeholder="Nome Obiettivo" style="padding:6px; font-size:11px;">
+                        <input type="number" id="goalCost" placeholder="Costo Totale €" style="padding:6px; font-size:11px;">
+                        <input type="number" id="goalMonths" placeholder="N° Mesi" style="padding:6px; font-size:11px;">
+                        <button onclick="addGoal()" style="background:var(--risparmio); color:white; border:none; border-radius:4px; padding:6px; font-size:11px;">Crea Obiettivo</button>
+                    </div>
+                    <div id="goalList" style="max-height:100px; overflow-y:auto"></div>
+                </div>
+            </div>
+
+            <div class="familydog-card">
+                <h3>🐾 Familydog</h3>
+                <p style="font-size: 10px; color: var(--text-muted)">Salvadanaio attività in nero</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin: 8px 0; background: #000; padding:8px; border-radius:6px;">
+                    <span>Saldo Attività:</span>
+                    <b id="dogBalance" style="color:var(--warning)">0,00€</b>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <input type="text" id="dogDesc" placeholder="Descrizione Pagamento" style="padding:6px; font-size:11px;">
+                    <input type="number" id="dogAmount" placeholder="Importo €" style="padding:6px; font-size:11px;">
+                    <select id="dogType" style="padding:6px; font-size:11px;">
+                        <option value="income">Entrata (+)</option>
+                        <option value="expense">Uscita (-)</option>
+                    </select>
+                    <button onclick="addDogEntry()" style="background:var(--warning); color:#0f172a; font-weight:bold; border:none; padding:6px; border-radius:4px; font-size:11px;">Registra</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let appData = JSON.parse(localStorage.getItem('family_v15_db')) || {
+        years: {
+            "2026": { entries: [], dogEntries: [], goals: [] }
+        }
+    };
+    
+    const today = new Date();
+    document.getElementById('monthFilter').value = today.getMonth();
+    document.getElementById('yearFilter').value = today.getFullYear();
+    document.getElementById('day').value = today.getDate();
+    document.getElementById('todayDisplay').innerText = `Oggi: ${today.toLocaleDateString('it-IT', {day:'numeric', month:'long', year:'numeric'})}`;
+
+    function getDb() {
+        const y = document.getElementById('yearFilter').value;
+        if (!appData.years[y]) {
+            appData.years[y] = { entries: [], dogEntries: [], goals: [] };
+        }
+        return appData.years[y];
+    }
+
+    function toggleRecFields() {
+        const isRec = document.getElementById('isRecurring').checked;
+        document.getElementById('recurringFields').style.display = isRec ? 'flex' : 'none';
+    }
+
+    function toggleCategoryFields() {
+        const category = document.getElementById('category').value;
+        const condoFields = document.getElementById('condoFields');
+        condoFields.style.display = category === '🏢' ? 'flex' : 'none';
+    }
+
+    function addEntry() {
+        const desc = document.getElementById('desc').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const day = parseInt(document.getElementById('day').value);
+        const cat = document.getElementById('category').value;
+        const account = document.getElementById('account').value;
+        const type = document.getElementById('type').value;
+        const isRecurring = document.getElementById('isRecurring').checked;
+        const selectedMonth = parseInt(document.getElementById('monthFilter').value);
+
+        let totalInstallments = null;
+        let paidInstallments = null;
+        let endYear = null;
+
+        if (isRecurring) {
+            totalInstallments = parseInt(document.getElementById('totalInstallments').value) || null;
+            paidInstallments = parseInt(document.getElementById('paidInstallments').value) || 0;
+            endYear = parseInt(document.getElementById('endYear').value) || null;
+        }
+
+        let condoInstallments = null;
+        let condoFrequency = null;
+        if (cat === '🏢') {
+            condoInstallments = parseInt(document.getElementById('condoInstallments').value) || null;
+            condoFrequency = parseInt(document.getElementById('condoFrequency').value) || 1;
+        }
+
+        if (!desc || isNaN(amount) || isNaN(day)) return alert("Compila tutti i campi!");
+
+        const db = getDb();
+
+        // Se è spesa ricorrente, la propaga su tutti i mesi successivi
+        if (isRecurring) {
+            for (let m = selectedMonth; m < 12; m++) {
+                db.entries.push({
+                    id: Date.now() + Math.random(),
+                    desc,
+                    amount,
+                    day,
+                    cat,
+                    account,
+                    type,
+                    isRecurring,
+                    month: m,
+                    totalInstallments,
+                    paidInstallments,
+                    endYear,
+                    condoInstallments,
+                    condoFrequency
+                });
+            }
+        } else {
+            db.entries.push({
+                id: Date.now(),
+                desc,
+                amount,
+                day,
+                cat,
+                account,
+                type,
+                isRecurring,
+                month: selectedMonth,
+                totalInstallments,
+                paidInstallments,
+                endYear,
+                condoInstallments,
+                condoFrequency
+            });
+        }
+
+        saveAndRender();
+        
+        document.getElementById('desc').value = '';
+        document.getElementById('amount').value = '';
+        document.getElementById('totalInstallments').value = '';
+        document.getElementById('paidInstallments').value = '';
+        document.getElementById('endYear').value = '';
+        document.getElementById('isRecurring').checked = false;
+        document.getElementById('condoInstallments').value = '';
+        toggleRecFields();
+        toggleCategoryFields();
+    }
+
+    function deleteEntry(id) {
+        const db = getDb();
+        db.entries = db.entries.filter(e => e.id !== id);
+        saveAndRender();
+    }
+
+    function transferMoney() {
+        const amount = parseFloat(document.getElementById('transferAmount').value);
+        const from = document.getElementById('fromAccount').value;
+        
+        if (isNaN(amount) || amount <= 0) return alert("Inserisci un importo valido.");
+        
+        const to = from === 'corrente' ? 'risparmio' : 'corrente';
+        
+        const db = getDb();
+        db.entries.push({ id: Date.now(), desc: `Trasferimento a ${to}`, amount, day: today.getDate(), cat: "🔄", account: from, type: 'expense', isRecurring: false, month: today.getMonth() });
+        db.entries.push({ id: Date.now() + 1, desc: `Trasferimento da ${from}`, amount, day: today.getDate(), cat: "🔄", account: to, type: 'income', isRecurring: false, month: today.getMonth() });
+        
+        document.getElementById('transferAmount').value = '';
+        saveAndRender();
+    }
+
+    function addGoal() {
+        const name = document.getElementById('goalName').value;
+        const cost = parseFloat(document.getElementById('goalCost').value);
+        const months = parseInt(document.getElementById('goalMonths').value);
+
+        if (!name || isNaN(cost) || isNaN(months) || months <= 0) return alert("Compila correttamente i campi dell'obiettivo!");
+
+        const monthlyRate = (cost / months).toFixed(2);
+        
+        const db = getDb();
+        db.goals.push({ id: Date.now(), name, cost, months, monthlyRate, paidMonths: 0 });
+        
+        document.getElementById('goalName').value = '';
+        document.getElementById('goalCost').value = '';
+        document.getElementById('goalMonths').value = '';
+        saveAndRender();
+    }
+
+    function payGoalInstallment(goalId) {
+        const db = getDb();
+        const goal = db.goals.find(g => g.id === goalId);
+        if (!goal) return;
+
+        let totals = getBalances();
+        let rateAmount = parseFloat(goal.monthlyRate);
+
+        let accountSource = prompt("Scegli la provenienza dei fondi ('corrente' o 'familydog'):", "corrente").toLowerCase();
+        
+        if (accountSource !== 'corrente' && accountSource !== 'familydog') {
+            return alert("Scelta non valida! Operazione annullata.");
+        }
+
+        let dogTotal = 0;
+        db.dogEntries.forEach(d => { dogTotal += d.dogType === 'income' ? d.dogAmount : -d.dogAmount; });
+
+        if (accountSource === 'corrente' && totals.corrente < rateAmount) {
+            return alert("Fondi insufficienti nel Conto Corrente!");
+        }
+        if (accountSource === 'familydog' && dogTotal < rateAmount) {
+            return alert("Fondi insufficienti nel Familydog!");
+        }
+
+        let customDateString = prompt("Giorno del mese del pagamento (1-31):", today.getDate());
+        let customDay = parseInt(customDateString) || today.getDate();
+
+        if (goal.paidMonths < goal.months) {
+            goal.paidMonths += 1;
+            
+            if (accountSource === 'corrente') {
+                db.entries.push({ id: Date.now(), desc: `Rata Obiettivo: ${goal.name}`, amount: rateAmount, day: customDay, cat: "🎯", account: "corrente", type: 'expense', isRecurring: false, month: today.getMonth() });
+            } else if (accountSource === 'familydog') {
+                db.dogEntries.push({ id: Date.now(), dogName: "Prelievo Obiettivo", dogDesc: `Rata Obiettivo: ${goal.name}`, dogAmount: rateAmount, dogType: "expense" });
+            }
+
+            db.entries.push({ id: Date.now() + 1, desc: `Versamento Rata: ${goal.name}`, amount: rateAmount, day: customDay, cat: "🎯", account: "risparmio", type: 'income', isRecurring: false, month: today.getMonth() });
+            
+            saveAndRender();
+        } else {
+            alert("Hai già raggiunto l'obiettivo!");
+        }
+    }
+
+    function deleteGoal(id) {
+        const db = getDb();
+        db.goals = db.goals.filter(g => g.id !== id);
+        saveAndRender();
+    }
+
+    function addDogEntry() {
+        const dogDesc = document.getElementById('dogDesc').value;
+        const dogAmount = parseFloat(document.getElementById('dogAmount').value);
+        const dogType = document.getElementById('dogType').value;
+
+        if (!dogDesc || isNaN(dogAmount)) return alert("Inserisci descrizione e importo in Familydog");
+
+        const db = getDb();
+        db.dogEntries.push({ id: Date.now(), dogDesc, dogAmount, dogType });
+        saveAndRender();
+        
+        document.getElementById('dogDesc').value = '';
+        document.getElementById('dogAmount').value = '';
+    }
+
+    function deleteDogEntry(id) {
+        const db = getDb();
+        db.dogEntries = db.dogEntries.filter(e => e.id !== id);
+        saveAndRender();
+    }
+
+    function getBalances() {
+        const db = getDb();
+        let totals = { corrente: 0, risparmio: 0 };
+        db.entries.forEach(e => {
+            const factor = e.type === 'income' ? 1 : -1;
+            totals[e.account] += (e.amount * factor);
+        });
+        return totals;
+    }
+
+    function saltoAnno() {
+        const currentYearSelect = document.getElementById('yearFilter');
+        const currentYear = parseInt(currentYearSelect.value);
+        const nextYear = currentYear + 1;
+        
+        if (!document.querySelector(`#yearFilter option[value='${nextYear}']`)) {
+            let opt = document.createElement('option');
+            opt.value = nextYear;
+            opt.innerHTML = nextYear;
+            currentYearSelect.appendChild(opt);
+        }
+
+        const currentDb = getDb();
+        let inc = 0, exp = 0;
+        currentDb.entries.forEach(e => {
+            if (e.type === 'income') inc += e.amount;
+            else exp += e.amount;
+        });
+
+        const confirmNewYear = confirm(`Resoconto anno ${currentYear}:\nEntrate totali: ${inc.toFixed(2)}€\nUscite totali: ${exp.toFixed(2)}€\n\nVuoi creare l'anno ${nextYear} e trasferire le ricorrenze attive?`);
+        if (!confirmNewYear) return;
+
+        if (!appData.years[nextYear]) {
+            appData.years[nextYear] = { entries: [], dogEntries: [], goals: [] };
+        }
+        const nextDb = appData.years[nextYear];
+
+        currentDb.entries.forEach(e => {
+            if (e.isRecurring && e.totalInstallments) {
+                const remaining = e.totalInstallments - (e.paidInstallments || 0);
+                if (remaining > 0) {
+                    if (e.endYear && e.endYear >= nextYear) {
+                        const askKeep = confirm(`Continuare ad inserire il finanziamento "${e.desc}" nell'anno ${nextYear}? (Scadenza: ${e.endYear})`);
+                        if (askKeep) {
+                            nextDb.entries.push({
+                                id: Date.now() + Math.random(),
+                                desc: e.desc,
+                                amount: e.amount,
+                                day: e.day,
+                                cat: e.cat,
+                                account: e.account,
+                                type: e.type,
+                                isRecurring: true,
+                                month: e.month,
+                                totalInstallments: e.totalInstallments,
+                                paidInstallments: e.paidInstallments,
+                                endYear: e.endYear
+                            });
+                        }
+                    }
+                }
+            }
+        });
+
+        currentYearSelect.value = nextYear;
+        saveAndRenderAndAlert(nextYear);
+    }
+
+    function saveAndRenderAndAlert(year) {
+        saveAndRender();
+        alert(`Anno ${year} caricato con successo!`);
+    }
+
+    function saveAndRender() {
+        localStorage.setItem('family_v15_db', JSON.stringify(appData));
+        render();
+    }
+
+    function render() {
+        const db = getDb();
+        const selMonth = parseInt(document.getElementById('monthFilter').value);
+        const table = document.getElementById('entriesTable');
+        const loanStatusList = document.getElementById('loanStatusList');
+        const goalList = document.getElementById('goalList');
+        
+        table.innerHTML = '';
+        loanStatusList.innerHTML = '';
+        goalList.innerHTML = '';
+
+        let totals = getBalances();
+        let dailyData = new Array(32).fill(0);
+        
+        let incCorrente = 0, expCorrente = 0;
+        let incRisparmio = 0, expRisparmio = 0;
+        let fisseEntrateCorrente = 0, fisseUsciteCorrente = 0;
+
+        document.getElementById('balCorrente').innerText = `€ ${totals.corrente.toLocaleString('it-IT', {minimumFractionDigits: 2})}`;
+        document.getElementById('balRisparmio').innerText = `€ ${totals.risparmio.toLocaleString('it-IT', {minimumFractionDigits: 2})}`;
+
+        const sortedEntries = db.entries.sort((a, b) => a.day - b.day);
+
+        sortedEntries.forEach(e => {
+            if (e.month === selMonth) {
+                const factor = e.type === 'income' ? 1 : -1;
+
+                if (e.account === 'corrente') {
+                    if (e.type === 'income') incCorrente += e.amount;
+                    else expCorrente += e.amount;
+
+                    if (e.isRecurring) {
+                        if (e.type === 'income') fisseEntrateCorrente += e.amount;
+                        else fisseUsciteCorrente += e.amount;
+                    }
+                }
+
+                if (e.account === 'risparmio') {
+                    if (e.type === 'income') incRisparmio += e.amount;
+                    else expRisparmio += e.amount;
+                }
+
+                if (e.account === 'corrente') {
+                    dailyData[e.day] += (e.amount * factor);
+                }
+
+                if (e.cat === '🏢' && e.condoInstallments) {
+                    loanStatusList.innerHTML += `
+                        <div style="padding:2px 0; border-bottom: 1px dashed #334155;">
+                            <b>Condominio</b>: ${e.condoInstallments} rate totali (ogni ${e.condoFrequency} mese/i).
+                        </div>
+                    `;
+                }
+
+                if (e.isRecurring && e.totalInstallments) {
+                    const remaining = e.totalInstallments - e.paidInstallments;
+                    if (remaining > 0) {
+                        let alertHtml = '';
+                        if (remaining === 1) alertHtml = `<span style="color:var(--danger)">⚠️ Penultima rata!</span>`;
+                        if (remaining === 0) alertHtml = `<span style="color:var(--danger)">🔴 Ultima rata!</span>`;
+                        
+                        loanStatusList.innerHTML += `
+                            <div style="padding:2px 0; border-bottom: 1px dashed #334155;">
+                                <b>${e.desc}</b>: Restano <b>${remaining}</b> rate. Scade nel <b>${e.endYear || 'N/D'}</b>. ${alertHtml}
+                            </div>
+                        `;
+                    }
+                }
+
+                table.innerHTML += `
+                    <tr>
+                        <td><span class="badge-day">${e.day}</span></td>
+                        <td>${e.cat} ${e.desc} ${e.isRecurring ? '<span class="tag-pill">FISSO</span>' : ''}</td>
+                        <td><small style="text-transform:uppercase">${e.account}</small></td>
+                        <td style="color:${e.type === 'income' ? 'var(--success)' : 'var(--danger)'}; font-weight:bold">
+                            ${e.type === 'income' ? '+' : '-'}${e.amount.toFixed(2)}€
+                        </td>
+                        <td><button onclick="deleteEntry(${e.id})" style="background:none; border:none; cursor:pointer;">❌</button></td>
+                    </tr>
+                `;
+            }
+        });
+
+        if (loanStatusList.innerHTML === '') loanStatusList.innerHTML = '<p style="color:var(--text-muted)">Nessun finanziamento da monitorare.</p>';
+
+        document.getElementById('summaryRec').innerHTML = `
+            <div style="font-size:10px; color:var(--text-muted); margin-bottom:2px;">CONTO CORRENTE:</div>
+            <div style="display:flex; justify-content:space-between;"><span>Entrate:</span> <b style="color:var(--success)">+${incCorrente.toFixed(2)}€</b></div>
+            <div style="display:flex; justify-content:space-between;"><span>Uscite:</span> <b style="color:var(--danger)">-${expCorrente.toFixed(2)}€</b></div>
+            <hr style="border:0; border-top:1px dashed #334155; margin:3px 0;">
+            <div style="display:flex; justify-content:space-between;"><span>Fisse Entrate:</span> <span>+${fisseEntrateCorrente.toFixed(2)}€</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>Fisse Uscite:</span> <span>-${fisseUsciteCorrente.toFixed(2)}€</span></div>
+            
+            <hr style="border:0; border-top:1px solid #334155; margin:5px 0;">
+            <div style="font-size:10px; color:var(--text-muted); margin-bottom:2px;">CONTO RISPARMIO:</div>
+            <div style="display:flex; justify-content:space-between;"><span>Entrate:</span> <b style="color:var(--success)">+${incRisparmio.toFixed(2)}€</b></div>
+            <div style="display:flex; justify-content:space-between;"><span>Uscite:</span> <b style="color:var(--danger)">-${expRisparmio.toFixed(2)}€</b></div>
+            
+            <div style="text-align:center; margin-top:8px; background:#334155; padding:4px; border-radius:4px;">
+                Saldo Mensile C.Corrente: <b>${(incCorrente - expCorrente).toFixed(2)}€</b>
+            </div>
+        `;
+
+        db.goals.forEach(g => {
+            let totalSaved = (g.paidMonths * parseFloat(g.monthlyRate));
+            let amountRemaining = Math.max(g.cost - totalSaved, 0);
+            let percentage = g.cost > 0 ? (totalSaved / g.cost) * 100 : 0;
+            if (percentage > 100) percentage = 100;
+
+            goalList.innerHTML += `
+                <div class="goal-box">
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <b>${g.name}</b>
+                        <button onclick="deleteGoal(${g.id})" style="background:none; border:none; color:var(--danger); cursor:pointer">❌</button>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">
+                        Costo totale: <b>${g.cost}€</b> | ${g.months} Mesi
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; font-size:11px">
+                        <span>Rata: <b style="color:var(--warning)">${g.monthlyRate} €/mese</b></span>
+                        <span>Rate pagate: <b>${g.paidMonths} / ${g.months}</b></span>
+                    </div>
+
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" style="width: ${percentage}%;"></div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size: 11px;">
+                        <span>Mancano: <b style="color:var(--warning);">${amountRemaining.toFixed(2)}€</b></span>
+                        <button onclick="payGoalInstallment(${g.id})" style="background:var(--success); color:white; border:none; border-radius:4px; padding: 4px 8px; font-size: 10px;">
+                            ${percentage === 100 ? 'Completato' : 'Paga Rata'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (goalList.innerHTML === '') goalList.innerHTML = '<p style="color:var(--text-muted); font-size:11px">Nessun obiettivo attivo.</p>';
+
+        let dogTotal = 0;
+        db.dogEntries.forEach(d => { dogTotal += d.dogType === 'income' ? d.dogAmount : -d.dogAmount; });
+        document.getElementById('dogBalance').innerText = `${dogTotal.toFixed(2)}€`;
+
+        updateProjectionChart(dailyData);
+    }
+
+    let chartObj = null;
+    function updateProjectionChart(dailyChanges) {
+        const ctx = document.getElementById('projectionChart').getContext('2d');
+        if (chartObj) chartObj.destroy();
+
+        let cumulative = 0;
+        const labels = Array.from({length: 31}, (_, i) => i + 1);
+        const dataPoints = labels.map(day => {
+            cumulative += dailyChanges[day] || 0;
+            return cumulative;
+        });
+
+        chartObj = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: dataPoints,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: { grid: { color: '#334155' }, ticks: { color: '#64748b', font: { size: 9 } } },
+                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 } } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    render();
+</script>
+</body>
+</html>
