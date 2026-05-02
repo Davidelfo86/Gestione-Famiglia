@@ -3,7 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Budget Premium v15</title>
+    <title>Family Budget Premium v16 PWA</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/gestione-famiglia/sw.js');
+        });
+      }
+    </script>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -265,6 +275,21 @@
         </div>
 
         <div class="right-col">
+            <div class="card" style="border-left: 4px solid var(--danger);">
+                <h3>⚡ Spesa Veloce (Uscita)</h3>
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px">
+                    <input type="number" id="fastAmount" placeholder="Importo €" style="padding:6px; font-size:11px;">
+                    <select id="fastCategory" style="padding:6px; font-size:11px;">
+                        <option value="🛒 Spesa">Spesa</option>
+                        <option value="📦 Amazon">Amazon</option>
+                        <option value="📱 Ricarica">Ricarica</option>
+                        <option value="🍽️ Ristorante">Ristorante</option>
+                        <option value="🎁 Varie">Varie</option>
+                    </select>
+                    <button onclick="addFastExpense()" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:6px; font-size:11px;">Registra Spesa</button>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>🔄 Trasferimento tra conti</h3>
                 <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:8px; align-items:center;">
@@ -317,7 +342,7 @@
 </div>
 
 <script>
-    let appData = JSON.parse(localStorage.getItem('family_v15_db')) || {
+    let appData = JSON.parse(localStorage.getItem('family_v16_db')) || {
         years: {
             "2026": { entries: [], dogEntries: [], goals: [] }
         }
@@ -379,7 +404,6 @@
 
         const db = getDb();
 
-        // Se è spesa ricorrente, la propaga su tutti i mesi successivi
         if (isRecurring) {
             for (let m = selectedMonth; m < 12; m++) {
                 db.entries.push({
@@ -429,6 +453,31 @@
         document.getElementById('condoInstallments').value = '';
         toggleRecFields();
         toggleCategoryFields();
+    }
+
+    function addFastExpense() {
+        const amount = parseFloat(document.getElementById('fastAmount').value);
+        const catDesc = document.getElementById('fastCategory').value;
+        const day = today.getDate();
+        
+        if (isNaN(amount) || amount <= 0) return alert("Inserisci un importo valido per la spesa veloce.");
+        
+        const db = getDb();
+        
+        db.entries.push({
+            id: Date.now(),
+            desc: catDesc.split(' ')[1] || 'Spesa',
+            amount: amount,
+            day: day,
+            cat: catDesc.split(' ')[0] || '🛒',
+            account: 'corrente',
+            type: 'expense',
+            isRecurring: false,
+            month: today.getMonth()
+        });
+
+        document.getElementById('fastAmount').value = '';
+        saveAndRender();
     }
 
     function deleteEntry(id) {
@@ -616,7 +665,7 @@
     }
 
     function saveAndRender() {
-        localStorage.setItem('family_v15_db', JSON.stringify(appData));
+        localStorage.setItem('family_v16_db', JSON.stringify(appData));
         render();
     }
 
